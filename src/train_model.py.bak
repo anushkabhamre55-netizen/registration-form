@@ -1,0 +1,128 @@
+# src/train_model.py
+import os
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
+import joblib
+import random
+
+DATA_PATH = os.path.join("data", "dataset.csv")
+MODEL_PATH = os.path.join("models", "job_pipeline.joblib")
+RANDOM_STATE = 42
+
+roles = [
+    "HR",
+    "MANAGER",
+    "PROJECT MANAGER",
+    "BUSINESS ANALYST",
+    "DATA ANALYST",
+    "CLERK"
+]
+
+educations = ["High School", "Diploma", "Bachelors", "Masters", "PhD"]
+domains = ["IT", "Finance", "Operations", "Marketing", "HR", "Manufacturing"]
+
+def generate_row():
+    age = np.random.randint(18, 61)
+    education = np.random.choice(educations, p=[0.15, 0.10, 0.40, 0.28, 0.07])
+    years_exp = max(0, int(np.random.normal(loc=max(0, age-22), scale=3)))  # rough
+    skills_count = np.clip(int(np.random.poisson(3)), 0, 12)
+    communication = np.clip(int(np.random.normal(6, 2)), 0, 10)
+    leadership = np.clip(int(np.random.normal(5, 2.5)), 0, 10)
+    technical = np.clip(int(np.random.normal(5, 3)), 0, 10)
+    certifications = np.random.randint(0, 6)
+    willing_to_travel = np.random.choice([0, 1], p=[0.7, 0.3])
+    preferred_domain = np.random.choice(domains)
+    # Heuristic label assignment with noise
+    score_hr = (communication * 1.3 + leadership * 0.9 + (0 if technical > 7 else 1.0*skills_count)) 
+    score_manager = leadership*1.6 + years_exp*0.1 + communication*0.6
+    score_pm = (leadership*1.2 + technical*0.8 + years_exp*0.12)
+    score_ba = communication*1.0 + skills_count*0.6 + certifications*0.4
+    score_da = technical*1.5 + skills_count*0.7 + certifications*0.6
+    score_clerk = (10 - years_exp)*0.2 + (5 - skills_count)*0.3 + communication*0.5
+
+    scores = np.array([score_hr, score_manager, score_pm, score_ba, score_da, score_clerk])
+    # Introduce some domain biases:
+    if preferred_domain == "HR":
+        scores[0] += 3
+    if preferred_domain == "IT":
+        scores[4] += 2; scores[2] += 1
+    if preferred_domain == "Finance":
+        scores[3] += 1.5
+
+    # pick role with noise
+    probs = np.exp(scores / (np.std(scores) + 1e-6))
+    probs = probs / probs.sum()
+    role = np.random.choice(roles, p=probs)
+
+    return {
+        "age": age,
+        "education": education,
+        "years_experience": years_exp,
+        "skills_count": skills_count,
+        "communication": communication,
+        "leadership": leadership,
+        "technical": technical,
+        "certifications": certifications,
+        "willing_to_travel": willing_to_travel,
+        "preferred_domain": preferred_domain,
+        "role": role
+    }
+
+def generate_dataset(n=5000, out_path=DATA_PATH):
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    rows = [generate_row() for _ in range(n)]
+    df = pd.DataFrame(rows)
+    df.to_csv(out_path, index=False)
+    print(f"Dataset generated at {out_path} with shape {df.shape}")
+    return df
+
+def train_and_save(df, model_path=MODEL_PATH):
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    X = df.drop(columns=["role"])
+    y = df["role"]
+
+    numeric_features = ["age", "years_experience", "skills_count", "communication", "leadership", "technical", "certifications", "willing_to_travel"]
+    categorical_features = ["education", "preferred_domain"]
+
+    numeric_transformer = StandardScaler()
+    categorical_transformer = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, numeric_features),
+            ("cat", categorical_transformer, categorical_features)
+        ],
+        remainder="drop"
+    )
+
+    clf = RandomForestClassifier(n_estimators=200, random_state=RANDOM_STATE, n_jobs=-1)
+
+    pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("classifier", clf)])
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
+    pipeline.fit(X_train, y_train)
+
+    preds = pipeline.predict(X_test)
+    acc = accuracy_score(y_test, preds)
+    print("Test accuracy:", acc)
+    print("Classification report:\n", classification_report(y_test, preds))
+
+    joblib.dump(pipeline, model_path)
+    print(f"Saved trained pipeline to {model_path}")
+    return pipeline
+
+if __name__ == "__main__":
+    # Generates dataset if not present, then trains
+    if not os.path.exists(DATA_PATH):
+        df = generate_dataset(5000)
+    else:
+        df = pd.read_csv(DATA_PATH)
+        print("Loaded existing dataset:", DATA_PATH, "shape:", df.shape)
+    pipeline = train_and_save(df)

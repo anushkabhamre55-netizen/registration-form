@@ -1,0 +1,92 @@
+# app.py
+import streamlit as st
+import pandas as pd
+import joblib
+import os
+from src.auth import verify_user
+
+MODEL_PATH = os.path.join("models", "job_pipeline.joblib")
+
+st.set_page_config(page_title="Job Eligibility Predictor", layout="centered")
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "email" not in st.session_state:
+    st.session_state.email = None
+
+def show_login():
+    st.title("🔐 Login")
+    with st.form("login_form"):
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Login")
+        if submitted:
+            if verify_user(email.strip(), password):
+                st.session_state.logged_in = True
+                st.session_state.email = email
+                st.success("Logged in successfully!")
+                st.experimental_rerun()
+            else:
+                st.error("Invalid email or password.")
+
+def show_predictor():
+    st.sidebar.write(f"Logged in as: {st.session_state.email}")
+    st.title("🧭 Job Eligibility Predictor")
+    st.write("Fill the form with your information and click **Predict**.")
+
+    with st.form("prediction_form"):
+        age = st.number_input("Age", min_value=18, max_value=70, value=25)
+        education = st.selectbox("Education", ["High School", "Diploma", "Bachelors", "Masters", "PhD"])
+        years_experience = st.number_input("Years of Experience", min_value=0, max_value=50, value=2)
+        skills_count = st.number_input("Number of Relevant Skills (count)", min_value=0, max_value=20, value=3)
+        communication = st.slider("Communication score (0-10)", 0, 10, 6)
+        leadership = st.slider("Leadership score (0-10)", 0, 10, 4)
+        technical = st.slider("Technical score (0-10)", 0, 10, 5)
+        certifications = st.number_input("Certifications count", min_value=0, max_value=20, value=0)
+        willing_to_travel = st.selectbox("Willing to travel?", ["No", "Yes"])
+        preferred_domain = st.selectbox("Preferred domain", ["IT", "Finance", "Operations", "Marketing", "HR", "Manufacturing"])
+
+        submit = st.form_submit_button("Predict")
+
+    if submit:
+        if not os.path.exists(MODEL_PATH):
+            st.error("Model not found. Run src/train_model.py first to generate the model.")
+            return
+        pipeline = joblib.load(MODEL_PATH)
+        sample = pd.DataFrame([{
+            "age": int(age),
+            "education": education,
+            "years_experience": int(years_experience),
+            "skills_count": int(skills_count),
+            "communication": int(communication),
+            "leadership": int(leadership),
+            "technical": int(technical),
+            "certifications": int(certifications),
+            "willing_to_travel": 1 if willing_to_travel == "Yes" else 0,
+            "preferred_domain": preferred_domain
+        }])
+        pred = pipeline.predict(sample)[0]
+        probs = pipeline.predict_proba(sample)[0]
+        classes = pipeline.classes_
+        st.subheader("Prediction")
+        st.success(f"Predicted eligible role: **{pred}**")
+        st.subheader("Probabilities")
+        prob_df = pd.DataFrame({"role": classes, "probability": probs})
+        prob_df = prob_df.sort_values("probability", ascending=False).reset_index(drop=True)
+        st.table(prob_df)
+        st.bar_chart(prob_df.set_index("role"))
+        # Optionally, show the raw input
+        if st.checkbox("Show input data"):
+            st.json(sample.to_dict(orient="records")[0])
+
+    # Logout button
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.email = None
+        st.experimental_rerun()
+
+# Main
+if not st.session_state.logged_in:
+    show_login()
+else:
+    show_predictor()

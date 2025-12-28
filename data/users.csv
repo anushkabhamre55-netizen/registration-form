@@ -1,0 +1,8 @@
+email,password_hash
+test@example.com,$2b$12$238ODS3.aeNfeUDGYrdC4e6kg4kOSun91KjFTFfi6byO5S/2eJPOu
+admin@gmail.com,$2b$12$2zITwYkL8KDIFPOMZ71ceuhRpM9twtScDXGyAccJeFDzMobezKUVy
+abcd@gmail.com,$2b$12$Cz17s.EsW3u2meA3iQmcsOdQiT1G8XZvyBthYtdewb5ndtMC3pMZm
+ds@gmail.com,$2b$12$uczqwFSRBG8dohOOpOD4Hu1jookz5/0mVsWXSh6mB3eOBZm8rJzqa
+ds1@gmail.com,$2b$12$UBhqR3.A9xyI9U6zq9HI7OqrJ21U/PRGxV.DyNyePMzXxbwGrGMUq
+kalyani@123,$2b$12$0H0Tgh5y2dx/GAjQZY3Om.ay.6CbDtBOaf9QCLf9n4dMSKvJKH0Ye
+swamini@gmail.com,$2b$12$2z.aOeygnmyjDehpaDRzhOHzNr2PowRhUwLisQhacviL7UgQHHZ/2

@@ -1,0 +1,23 @@
+# src/auth.py
+import csv
+import bcrypt
+import os
+
+USERS_PATH = os.path.join("data", "users.csv")
+
+def load_users():
+    if not os.path.exists(USERS_PATH):
+        return {}
+    users = {}
+    with open(USERS_PATH, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            users[r["email"]] = r["password_hash"]
+    return users
+
+def verify_user(email, password):
+    users = load_users()
+    if email not in users:
+        return False
+    stored_hash = users[email].encode("utf-8")
+    return bcrypt.checkpw(password.encode("utf-8"), stored_hash)

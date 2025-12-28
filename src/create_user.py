@@ -1,0 +1,26 @@
+# src/create_user.py (patched)
+import os
+import bcrypt
+import csv
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+USERS_PATH = os.path.join(BASE_DIR, "data", "users.csv")
+
+def add_user(email, password):
+    os.makedirs(os.path.dirname(USERS_PATH), exist_ok=True)
+    password_bytes = password.encode("utf-8")
+    hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
+    # Append to CSV
+    write_header = not os.path.exists(USERS_PATH)
+    with open(USERS_PATH, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if write_header:
+            writer.writerow(["email", "password_hash"])
+        writer.writerow([email, hashed])
+    print(f"User {email} added to {USERS_PATH}")
+
+if __name__ == "__main__":
+    print("Create a user for the Streamlit app.")
+    email = input("Email: ").strip()
+    password = input("Password: ").strip()
+    add_user(email, password)
