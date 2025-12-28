@@ -169,7 +169,7 @@ Final approval received.
 - Member 3: [Anjali Atish Amrutkar]  
 - Member 4: [Yashwi Vijay Wagh]
 
-  **Guided By:Prof. Yogesh R. Pathak**
+  **Guided By : Prof. Yogesh R. Pathak**
   
 
 
